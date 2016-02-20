@@ -1,6 +1,5 @@
-# radio-server
+# Radio-server
 Radio Server for Debian based system, RaspberryPI and CHIP and more... 
-
 
 Installation on Raspberry // CHIP whatever
 
@@ -24,7 +23,7 @@ Start / Stop script
   $ sudo /etc/init.d/webradio.sh start   # ( or stop, status, etc )
 
 
--------------------------- USAGE -----------------------------
+## USAGE
 
 Just open browser and point to web address of the appliance.
 eg . http://192.168.2.123:8804
@@ -45,9 +44,9 @@ Volume should work (but is an hack with alsamixer... well everything is an hack!
 Just enjoy!
 
 
----------------------- WARNING -------------------------------------------
+# WARNING 
 
-# Database
+## Database
 database.db is filled with Internet Radio /
 They can be changed /insert/modify/delete with User interface
 
