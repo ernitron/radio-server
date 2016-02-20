@@ -47,8 +47,11 @@ Just enjoy!
 # WARNING 
 
 ## Database
-database.db is filled with Internet Radio /
+database.db is filled with Internet Radio taken from Internet
+
 They can be changed /insert/modify/delete with User interface
+
+It took me sometime to discover them... I guess internet radio apps make that part of value ;)
 
 
 
