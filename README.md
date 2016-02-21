@@ -11,15 +11,15 @@ Is is just a simple web interfcae to search, play, modify Internet Radios. Addin
 
 Just copy the branch in a directory like /usr/local/bin/webradio 
 
-Starting from git repository I would suggest this:
+Starting from git repository I would suggest this (suppose your target device is 192.168.2.123):
 
+	ssh root@192.168.168.2.123
+	cd /tmp
 	git clone https://github.com/ernitron/radio-server.git
 	cd radio-server
-	scp -r webradio root@yourserveraddress.com:/usr/local/bin
-	
-And finally ssh to yourserveraddress to set it up.
+	sudo cp -a webradio /usr/local/bin
 
-On target install cherrypy3 and sqlite3
+Install cherrypy3 and sqlite3
 
 	$ sudo apt-get install python-cherrypy3
 	$ sudo apt-get install sqlite3
@@ -33,6 +33,7 @@ Anyway it is possible to change default parameters of server like
 
 Optional update-rc.d to let it start on boot (debian/ubuntu/raspiban/chip linux)
 
+	$ SUDO cd /usr/loca/bin/webradio
 	$ sudo cp webradio.sh /etc/init.d
 	$ sudo update-rc.d  webradio.sh defaults
   
@@ -73,7 +74,7 @@ database.db is filled with Internet Radio taken from Internet
 
 They can be changed /insert/modify/delete with User interface
 
-It took me sometime to discover them... I guess internet radio apps make that part of value ;)
+It took me sometime to discover them... I guess internet radio apps make that part of their value ;)
 
 
 
