@@ -2,11 +2,24 @@
 
 Radio Server for Debian based system, RaspberryPI and CHIP and more... 
 
-Installation on Raspberry // CHIP whatever
+It is a minimalistic wrap on mplayer//omxplayer and a bunch of internet radio url addresses kept in a sqlite3 DB. Design is responsive by means of Twitter:Bootstrap.
+
+Is is just a simple web interfcae to search, play, modify Internet Radios. Adding your genre, and information to search easily.
+
+
+## Installation on Raspberry // CHIP whatever
 
 Just copy the branch in a directory like /usr/local/bin/webradio 
 
-Install cherrypy3 and sqlite3
+Starting from git repository I would suggest this:
+
+	git clone https://github.com/ernitron/radio-server.git
+	cd radio-server
+	scp -r webradio root@yourserveraddress.com:/usr/local/bin
+	
+And finally ssh to yourserveraddress to set it up.
+
+On target install cherrypy3 and sqlite3
 
 	$ sudo apt-get install python-cherrypy3
 	$ sudo apt-get install sqlite3
