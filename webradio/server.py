@@ -692,17 +692,8 @@ if __name__ == '__main__':
 
     settings = {'global': {'server.socket_host': "0.0.0.0",
                            'server.socket_port' : options.port,
-                           'server.ssl_module':'builtin',
-                           'server.ssl_certificate':'keys/aitekssl.crt',
-                           'server.ssl_private_key':'keys/aitekssl.key',
                            'log.screen': True,
                           },
-               }
-    if options.port != 443 :
-        settings = {'global': {'server.socket_host': "0.0.0.0",
-                               'server.socket_port' : options.port,
-                               'log.screen': True,
-                              },
                }
 
     conf = {'/static': {'tools.staticdir.on': True,
