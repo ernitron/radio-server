@@ -810,7 +810,7 @@ if __name__ == '__main__':
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--player', action="store", dest="player", default="omxplayer")
+    parser.add_argument('--player', action="store", dest="player", default="mplayer")
     parser.add_argument('--stage', action="store", dest="stage", default="production")
     parser.add_argument('--database', action="store", dest="database",  default="database.db")
     parser.add_argument('--root', action="store", dest="root", default=".")

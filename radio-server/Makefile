@@ -14,7 +14,7 @@ BRACKET=$'\e[34;01m'
 #
 
 # Variables
-SERVER=yourserver
+SERVER=chip2
 SERVERS=yourservers
 SCRIPT=radioserver.sh
 INSTALLDIR=/usr/local/bin/radioserver
@@ -34,7 +34,7 @@ pre-install:
 	sudo pip install cherrypy
 
 rsync: check
-	rsync -av $(PACKAGES) $(VIEW) $(STATIC) $(SCRIPT) root@$(SERVER):/$(INSTALLDIR)/
+	rsync -av $(PACKAGES) $(STATIC) $(SCRIPT) root@$(SERVER):/$(INSTALLDIR)/
 
 revsync:
 	rsync -av root@$(SERVER):/$(INSTALLDIR)/server.py  .
