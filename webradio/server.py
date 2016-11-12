@@ -254,8 +254,8 @@ def isplayfile(pathname) :
 # ------------------------ AUTHENTICATION --------------------------------
 from cherrypy.lib import auth_basic
 
-# Tre ;)
-users = {'admin':'29778a9bdb2253dd8650a13b8e685159' , 'et': '6a6877ca5da6b3d6823bc8fbcf25017b'}
+#  Password is: webradio
+users = {'admin':'29778a9bdb2253dd8650a13b8e685159'}
 
 def validate_password(self, login, password):
     if login in users :

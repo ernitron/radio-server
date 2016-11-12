@@ -1,8 +1,8 @@
 # Radio-server
 
-Radio Server for Debian based system, RaspberryPI and CHIP and more... 
+Radio Server for Debian based system, RaspberryPI, CHIP 9$ Computer and more... 
 
-It is a minimalistic wrap on mplayer//omxplayer and a bunch of internet radio url addresses kept in a sqlite3 DB. Design is responsive by means of Twitter:Bootstrap.
+It is a minimalistic wrap on mpg123//mplayer//omxplayer and a bunch of internet radio url addresses kept in a sqlite3 DB. Design is responsive by means of Twitter:Bootstrap.
 
 Is is just a simple web interfcae to search, play, modify Internet Radios. Adding your genre, and information to search easily.
 
@@ -19,27 +19,32 @@ Starting from git repository I would suggest this (suppose your target device is
 	cd radio-server
 	sudo cp -a webradio /usr/local/bin
 
-Install cherrypy3 and sqlite3
+Install cherrypy3 and sqlite3 
 
 	$ sudo apt-get install python-cherrypy3
 	$ sudo apt-get install sqlite3
+
+Install player
+	$ sudo apt-get install mplayer 
+    OR
+	$ sudo apt-get install mpg123 
 	
 Configure parameters in webradio.sh # it is already preconfigured if installation is in /usr/local/bin/webradio
 Anyway it is possible to change default parameters of server like
 
 	--port 80 (default is 8804)
-	--player mplayer OR omxplayer (for RaspberryPi)
+	--player mpg123 OR mplayer OR omxplayer (for RaspberryPi)
 	--etc. see code. 
 
 Optional update-rc.d to let it start on boot (debian/ubuntu/raspiban/chip linux)
 
-	$ SUDO cd /usr/loca/bin/webradio
-	$ sudo cp webradio.sh /etc/init.d
-	$ sudo update-rc.d  webradio.sh defaults
+	$ cd /usr/loca/bin/webradio
+	$ sudo cp radioserver.sh /etc/init.d
+	$ sudo update-rc.d radioserver.sh defaults
   
 Start / Stop script
 
-	$ sudo /etc/init.d/webradio.sh start   # ( or stop, status, etc )
+	$ sudo /etc/init.d/radioserver.sh start   # ( or stop, status, etc )
 
 
 ## USAGE
@@ -76,10 +81,4 @@ They can be changed /insert/modify/delete with User interface
 
 It took me sometime to discover them... I guess internet radio apps make that part of their value ;)
 
-
-
-
-
-  
-  
 
