@@ -1,25 +1,24 @@
 #!/bin/sh
 
 ### BEGIN INIT INFO
-# Provides:        webradio
+# Provides:        radioserver
 # Required-Start:  $network $remote_fs $syslog
 # Required-Stop:   $network $remote_fs $syslog
 # Default-Start:   2 3 4 5
 # Default-Stop:    1
-# Short-Description: Start webradio daemon
+# Short-Description: Start radioserver daemon
 ### END INIT INFO
 
 PATH=/sbin:/bin:/usr/sbin:/usr/bin
 
 . /lib/lsb/init-functions
 
-# CONFIGURE HERE
-DIRECTORY=/usr/local/bin/webradio
-DAEMON=/usr/local/bin/webradio/server.py
-PIDFILE=/var/run/webradio.pid
-SERVERNAME=webradioserver
-OPTS="--root $DIRECTORY --pid $PIDFILE --port 80 --player mplayer"
-LOCKFILE=/var/lock/webradio
+SERVERNAME=radioserver
+DIRECTORY=/usr/local/bin/radioserver
+DAEMON=/usr/local/bin/radioserver/server.py
+PIDFILE=/var/run/radioserver
+OPTS="--root /usr/local/bin/radioserver --pid $PIDFILE"
+LOCKFILE=/var/lock/radioserver
 
 #------------------ DO NOT CHANGE FROM HERE ------------------
 test -x $DAEMON || exit 5
@@ -84,7 +83,7 @@ case $1 in
 		exit 3
 		;;
 	status)
-		status_of_proc $DAEMON "$SERVERNAME server"
+   		status_of_proc -p $PIDFILE $DAEMON "$SERVERNAME server"
 		;;
 	*)
 		echo "Usage: $0 {start|stop|restart|try-restart|force-reload|status}"

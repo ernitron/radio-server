@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 """
-  My code server application
-  I should know what it does
+  My radio server application
   For my eyes only
 """
 
@@ -13,23 +12,23 @@ import os
 import sys
 import time
 import socket
-import random
 import cherrypy
 import sqlite3 as lite
 import re
 import subprocess
+from random import shuffle
 
 # Globals
-version = "4.0"
+version = "4.2.1"
 database = "database.db"
-player = ''
+player = 'omxplayer'
 
 header = '''<!DOCTYPE html>
 <html lang="en">
 <head>
   <title>My Radio Web Server</title>
   <meta name="generator" content="Vim">
-  <meta charset=utf-8">
+  <meta charset="UTF-8">
   <link rel="icon" type="image/png" href="/static/css/icon.png" />
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <script src="/static/js/jquery-2.0.3.min.js"></script>
@@ -76,6 +75,16 @@ header = '''<!DOCTYPE html>
             "html"
         );
      }
+     function faddfav(i, g) {
+       $.post('/haddfav/', {id: i},
+            function(data){
+                $("#radio-playing").html(data);
+                $("#radio-playing").show();
+                $("#radio-volume").hide();
+            },
+            "html"
+        );
+     }
      function fvolradio(updown) {
         $.post('/v/', {vol: updown},
             function(data){
@@ -94,9 +103,18 @@ header = '''<!DOCTYPE html>
             "html"
         );
      }
-     function sgenradio(gen) {
-        $.post('/g/', {genre: gen},
+     function fsearch(nam, gen) {
+        $.post('/g/', {name: nam, genre: gen},
             function(data) {
+                $("#radio-table").html(data);
+                $("#radio-table").show();
+            },
+            "html"
+        );
+     }
+     function frandom(n, g) {
+       $.post('/g/', {name: n, genre: g, randomlist:'true'},
+            function(data){
                 $("#radio-table").html(data);
                 $("#radio-table").show();
             },
@@ -136,8 +154,7 @@ header = '''<!DOCTYPE html>
          $('#button-search').click(function(e) {
              n = $("#name").val()
              g = $("#genre").val()
-             if ($("#editmode").is(":checked")) { t = "True" } else { t = "False" }
-             $.post("/g/", {name: n, genre: g, editmode: t})
+             $.post("/g/", {name: n, genre: g})
               .done(function(data) {
                   $("#radio-table").html(data);
                   $("#radio-table").show();
@@ -181,7 +198,7 @@ header = '''<!DOCTYPE html>
 
 <div class="container-fluid">
    <div class='jumbotron'>
-      <h2><a href="/">Radio Server</a>
+      <h2><a href="/">Radio</a>
       <a href="#" onClick="fvolradio('down')"><span class="glyphicon glyphicon-volume-down"></span></a>
       <a href="#" onClick="fvolradio('up')"><span class="glyphicon glyphicon-volume-up"></span></a>
       <a href="#" onClick="fkilradio('up')"> <span class="glyphicon glyphicon-record"></span></a>
@@ -189,27 +206,31 @@ header = '''<!DOCTYPE html>
       <p>
       <div class="form-group">
         <input type="text" id="name" name="name" placeholder="radio to search">
-        <label >Genre:</label>
         <input type="text" id="genre" name="genre" placeholder="genre" >
-        <input type="checkbox" id="editmode" name="editmode" >
-        <label >edit</label>
         <button id="button-search">Search</button>
-      [ <a href="#" onClick="sgenradio('rai')"> rai </a>|
-      <a href="#" onClick="sgenradio('rmc')"> rmc </a> |
-      <a href="#" onClick="sgenradio('nl')"> nl </a> ]
       </div>
       </p>
       <p>
       <div class="form-group">
       <input type="text" id="namei" name="name" placeholder="Radio Name">
-        <label >Genre: </label>
        <input type="text" id="genrei" name="genre" placeholder="genre">
-        <label >url: </label>
-        <input type="text" id="urli" name="url" placeholder="http://example.com">
+        <input type="text" id="urli" name="url" placeholder="http://radio.com/stream.mp3">
        <button id="button-insert">Insert</button>
-      </div>
+       <p>
+      [
+      <a href="#" onClick="fsearch('', 'rai')"> rai </a>|
+      <a href="#" onClick="fsearch('','fav')"> fav </a> |
+      <a href="#" onClick="fsearch('','rmc')"> rmc </a> |
+      <a href="#" onClick="fsearch('','class')"> class </a> |
+      <a href="#" onClick="fsearch('','jazz')"> jazz </a> |
+      <a href="#" onClick="fsearch('','chill')"> chill </a> |
+      <a href="#" onClick="fsearch('','nl')"> nl </a> |
+      <a href="#" onClick="fsearch('','bbc')"> bbc </a> |
+      <a href="#" onClick="fsearch('','uk')"> uk </a> |
+      <a href="#" onClick="fsearch('','italy')"> italy </a>
+      ]
       </p>
-
+      </div>
     <small><div id="radio-playing"> </div></small>
     </br>
    </div> <!-- Jumbotron END -->
@@ -220,12 +241,21 @@ header = '''<!DOCTYPE html>
 
 footer = '''<p></div></body></html>'''
 
+def isplayfile(pathname) :
+    if os.path.isfile(pathname) == False:
+        return False
+    ext = os.path.splitext(pathname)[1]
+    ext = ext.lower()
+    if (ext == '.mp2') : return True;
+    if (ext == '.mp3') : return True;
+    if (ext == '.ogg') : return True;
+    return False
 
 # ------------------------ AUTHENTICATION --------------------------------
 from cherrypy.lib import auth_basic
 
-# Admin Pass Database: admin:webradio ;)
-users = {'admin': '29778a9bdb2253dd8650a13b8e685159'}
+# Tre ;)
+users = {'admin':'29778a9bdb2253dd8650a13b8e685159' , 'et': '6a6877ca5da6b3d6823bc8fbcf25017b'}
 
 def validate_password(self, login, password):
     if login in users :
@@ -241,48 +271,75 @@ def encrypt(pw):
     return md5(pw).hexdigest()
 
 # ------------------------ CLASS --------------------------------
-class RadioServer:
+class Root:
     @cherrypy.expose
     def index(self):
         html = header
-        (radio, genre, url) = getradio('0')
-        if url != 0:
-             playradio(url)
-             html += 'Starting Play %s' % url
+        (_1, _2, id) = getradio('0')
+        (radio, genre, url) = getradio(id)
+
+        if id != 0:
+            html += '''<h3><a href="#" onClick="fplayradio('%s')"> ''' % id
+            html += '''Play Last Radio %s <span class="glyphicon glyphicon-play"></span></a></h3>''' % radio
         html += getfooter()
         return html
 
     @cherrypy.expose
-    def g(self, name="", genre="", editmode=None):
+    def music(self, directory='/mnt/Media/Music/'):
+        html = header
+        count = 0
+        html += '''<table class="table table-condensed">'''
+        filelist = os.listdir(directory)
+        filelist.sort()
+        for f in filelist:
+          file = os.path.join(directory, f)
+          html += '''<tr>'''
+          if isplayfile(file):
+            html += '''<td ><a href="#" onClick="fplayradio('%s')">''' % file
+            html += '''Play %s<span class="glyphicon glyphicon-play"></span></a></td>''' % (file)
+          if os.path.isdir(file):
+            html += '''<td ><a href="/music?directory=%s">%s</a> </td>''' % (file, f)
+          html += '''</tr>'''
+          count += 1
 
+        html += '''</table>'''
+        html += '''</div> </div>'''
+
+        html += getfooter()
+        return html
+
+    @cherrypy.expose
+    def g(self, name="", genre="", randomlist='false'):
         list = searchradio(name.decode('utf8'), genre)
+        count = 0
+
+        # Randomlist
+	if randomlist == 'true' : shuffle(list)
 
         listhtml = '''<table class="table table-condensed">'''
-        count = 0
-        for code in list:
+        for id,radio,gen,url in list:
             listhtml += '''<tr>'''
-            if (editmode != None and editmode == "True") :
-                listhtml += '''<td width="100px"><a href="#" onClick="fmodradio('%d')">Mod <span class="glyphicon glyphicon-pencil"></span></a></td>''' % (int(code[0]))
-                listhtml += '''<td width="100px"><a href="#" onClick="fdelradio('%d')"><span class="glyphicon glyphicon-trash"></span></a></td>''' % (int(code[0]))
-            listhtml += '''<td width="200px">%s</td>''' % code[1]
-            listhtml += '''<td width="100px">%s</td>''' % code[2]
-            listhtml += '''<td width="100px"><a href="%s" target="_blank">%s</a></td>''' % (code[3], getshort(code[3]))
-            listhtml += '''<td><a href="#" onClick="fplayradio('%d')">Play <span class="glyphicon glyphicon-play"></span></a></td>''' % (int(code[0]))
+            listhtml += '''<td width="200px"><a href="#" onClick="fmodradio('%s')" alt="%s">%s</a></td>''' % (id, url, radio)
+            listhtml += '''<td width="100px">%s</td>''' % gen
+            listhtml += '''<td ><a href="#" onClick="fplayradio('%s')">Play <span class="glyphicon glyphicon-play"></span></a></td>''' % (id)
             listhtml += '''</tr>'''
             count += 1
         listhtml += '''</table>'''
         listhtml += '''</div> </div>'''
 
-        html = ""
+        html = ''
         html += '''<div class="row"> <div class="col-md-8"> '''
-        html += '''<h2> %d Results for '%s' + '%s'</h2>''' % (count, name, genre)
+        if randomlist == 'false':
+            html += '''<h2><a href="#" onClick="frandom(name='%s', genre='%s', randomlist='true')">%d Results for '%s' + '%s'</a></h2>''' % (name, genre, count, name, genre)
+        else:
+            html += '''<h2><a href="#" onClick="fsearch(name='%s', genre='%s')">%d Random for '%s' + '%s'</a></h2>''' % (name, genre, count, name, genre)
+
         html += listhtml
 
         return html
 
     @cherrypy.expose
     def i(self, name="", genre="", url=""):
-
         html = "<h2>Insert</h2>"
         if name == "" or name == None :
           html += "Error no name"
@@ -298,7 +355,7 @@ class RadioServer:
         html += '''  <td>radio: <strong>%s</strong></td> ''' % name
         html += '''  <td>genre: <strong>%s</strong></td> ''' % genre
         html += '''  <td>url: <strong><a href="%s" target="_blank">%s</a></strong></td> ''' % (url, url)
-        #html += '''  <td width="300px"><a href="#" onClick="fplayradio('%d')"> Play ''' % (int(id))
+        html += '''  <td width="300px"><a href="#" onClick="fplayradio('%s')"> Play ''' % url
         html += '''<span class="glyphicon glyphicon-play"></span></a></td>'''
         html += ''' </tr> '''
         html += '''</table>'''
@@ -307,7 +364,6 @@ class RadioServer:
 
     @cherrypy.expose
     def d(self, id=""):
-
         html = "<h2>Delete</h2>"
         if id == "" or id == None :
             html += "Error"
@@ -317,28 +373,27 @@ class RadioServer:
           html += "0 is reserved, sorry"
           return html
 
-        if delete(id) == False:
+        #if delete(id) == False:
+        if nonexist(id) == False:
             html += "Delete error in id" % id
             html += getfooter()
             return html
 
-        html += "Item %s deleted" % id
+        html += "Item %s set as non existent" % id
         return html
 
     @cherrypy.expose
-    def p(self, id=""):
-
+    def p(self, id):
         html = ""
         if id == "" or id == None :
             html += "Error no radio id"
             return html
-
         if id == "0" :
           html += "0 is reserved, sorry"
           return html
 
-        (radio, genre, url) = getradio(id)
-        if playradio(url) == False:
+        (radio, genre, url) = playradio(id)
+        if  url == '':
             html += "Error in parameter %s" % url
             return html
 
@@ -348,8 +403,10 @@ class RadioServer:
         html += '''<a href="#" onClick="fplayradio('%s')">''' % id
         html += '''<span class="glyphicon glyphicon-play"></span></a>'''
         html += '''&nbsp;<a href="#" onClick="fmodradio('%s')"><span class="glyphicon glyphicon-pencil"></span></a></small>&nbsp;''' % id
-        html += '''<a href="#" onClick="fdelradio('%s')"><span class="glyphicon glyphicon-trash"></span></a>''' % id
+        html += '''<a href="#" onClick="fdelradio('%s')"><span class="glyphicon glyphicon-trash"></span></a>&nbsp;''' % id
+        html += '''<a href="#" onClick="faddfav('%s')"><span class="glyphicon glyphicon-star"></span></a>''' % id
         html += '''</h3>'''
+        print html
         return html
 
     @cherrypy.expose
@@ -364,29 +421,30 @@ class RadioServer:
 
     @cherrypy.expose
     def m(self, id):
-
         html = '''<h2>Modify</h2>'''
 
         if id == "" or id == None :
           html += "Error"
           return html
-
         if id == "0" :
           html += "0 is reserved, sorry"
           return html
 
         (name, genre, url) = getradio(id)
+        html += '<h3>%s | %s | %s</h3>' % (name, genre, url)
         html += '''<input type="hidden" id="idm" name="id" value="%s">''' % id
         html += '''<input type="text" id="namem" name="name" value="%s">''' % name
         html += '''genre: <input type="text" id="genrem" name="genre" value="%s"> ''' % genre
-        html += '''url: <input type="text" id="urlm" name="url" value="%s"> ''' % url
+        html += '''url: <input type="text" style="min-width: 280px" id="urlm" name="url" value="%s"> ''' % url
         html += '''<button id="button-modify">Change</button>'''
+        html += '''<h3><a href="#" onClick="fdelradio('%s')">Delete? <span class="glyphicon glyphicon-trash"></span></a></h3>''' % id
+        html += '''<h3><a href="%s" target="_blank">Play in browser <span class="glyphicon glyphicon-music"></span></a>''' % url
+
 
         return html
 
     @cherrypy.expose
     def f(self, id="", name="", genre="", url=""):
-
         html = '''<h2>Modified</h2>'''
         if id == "" or id == None :
           html += "Error missing id"
@@ -408,10 +466,46 @@ class RadioServer:
         html += '''<td width="200px">%s</td>''' % name
         html += '''<td width="200px">%s</td>''' % genre
         html += '''<td><a href="%s" target="_blank">%s</a></td>''' % (url, url)
-        html += '''<td width="300px"><a href="#" onClick="fplayradio('%s')">'''% id
+        html += '''<td width="300px"><a href="#" onClick="fplayradio('%s')">'''% url
         html += '''Play <span class="glyphicon glyphicon-play"></span></a></td>'''
         html += '''</tr>'''
         html += '''</table>'''
+
+        return html
+
+    @cherrypy.expose
+    def haddfav(self, id=""):
+        if id == "" or id == None :
+          html += "Error missing id"
+          return html
+
+        if id == "0" :
+          html += "0 is reserved, sorry"
+          return html
+
+        (name, genre, url) = getradio(id)
+        if 'Fav' in genre:
+            genre = genre.replace(', Fav', '')
+            star = False
+        else:
+            genre += ', Fav'
+            star = True
+
+        if addgen(id, genre) == False:
+            return ''
+
+        (name, genre, url) = getradio(id)
+        cherrypy.session['playing'] = id
+        html = '<h3>Now Playing: '
+        html += '''<a href="%s">%s</a>''' % (url, name)
+        html += '''<a href="#" onClick="fplayradio('%s')">''' % url
+        html += '''<span class="glyphicon glyphicon-play"></span></a>'''
+        html += '''&nbsp;<a href="#" onClick="fmodradio('%s')"><span class="glyphicon glyphicon-pencil"></span></a></small>&nbsp;''' % id
+        html += '''<a href="#" onClick="fdelradio('%s')"><span class="glyphicon glyphicon-trash"></span></a>&nbsp;''' % id
+        html += '''<a href="#" onClick="faddfav('%s')"><span class="glyphicon glyphicon-star"></span></a>''' % id
+        if star:
+            html += '''Starred'''
+        html += '''</h3>'''
 
         return html
 
@@ -462,8 +556,8 @@ def delete(id) :
     try:
         con = lite.connect( db )
         cur = con.cursor()
-    	sql =  "DELETE from Radio WHERE id = '%s'" % (id)
-    	cur.execute(sql)
+        sql =  "DELETE from Radio WHERE id = '%s'" % (id)
+        cur.execute(sql)
         ret = True
     except:
         print "Error deleting sql %s" % sql
@@ -474,14 +568,30 @@ def delete(id) :
     con.close()
     return ret
 
-def insert(radio, genre, url) :
+def nonexist(id) :
     db = cherrypy.session['database']
-
+    sql =  "UPDATE Radio set exist = 0 WHERE id = '%s'" % (id)
     try:
         con = lite.connect( db )
         cur = con.cursor()
-    	sql =  "INSERT INTO Radio (radio, genre, url) VALUES('%s', '%s', '%s')" % (radio, genre, url)
-    	cur.execute(sql)
+        cur.execute(sql)
+        ret = True
+    except:
+        print "Error in sql %s" % sql
+        ret = False
+
+    updateversiondb(cur)
+    con.commit()
+    con.close()
+    return ret
+
+def insert(radio, genre, url) :
+    db = cherrypy.session['database']
+    sql =  "INSERT INTO Radio (radio, genre, url, exist) VALUES('%s', '%s', '%s', 1)" % (radio, genre, url)
+    try:
+        con = lite.connect( db )
+        cur = con.cursor()
+        cur.execute(sql)
         ret = True
     except:
         print "Error inserting sql %s" % sql
@@ -495,11 +605,29 @@ def insert(radio, genre, url) :
 def modify(id, radio, url, genre) :
     db = cherrypy.session['database']
 
+    sql = "UPDATE Radio SET radio='%s', url='%s', genre='%s', exist=1 WHERE id = %s" % (radio, url, genre, id)
     try:
         con = lite.connect( db )
         cur = con.cursor()
-    	sql = "UPDATE Radio SET radio='%s', url='%s', genre='%s' WHERE id = %s" % (radio, url, genre, id)
-    	cur.execute(sql)
+        cur.execute(sql)
+        ret = True
+    except:
+        print "Error modify sql %s" % sql
+        ret = False
+
+    updateversiondb(cur)
+    con.commit()
+    con.close()
+    return ret
+
+def addgen(id, genre) :
+    db = cherrypy.session['database']
+
+    sql = "UPDATE Radio SET genre='%s' WHERE id = %s" % (genre, id)
+    try:
+        con = lite.connect( db )
+        cur = con.cursor()
+        cur.execute(sql)
         ret = True
     except:
         print "Error modify sql %s" % sql
@@ -512,25 +640,31 @@ def modify(id, radio, url, genre) :
 
 def getradio(id) :
     db = cherrypy.session['database']
+    if id.isdigit() :
+    	sql = "select radio, genre, url from Radio where id=%s" % id
+    else:
+    	sql = "select radio, genre, url from Radio where url=%s" % id
     try:
         con = lite.connect( db )
         cur = con.cursor()
-        cur.execute("select radio, genre, url from Radio where id=%s" % id)
+        cur.execute(sql)
     except:
-        rows = ('Radio Not Found', 'none', './Hey-yay-hey.mp3')
+        rows = [('Not Found', '', '')]
 
     rows = cur.fetchone()
+    if rows == None:
+        rows = ('Not Found', '', '')
+
     con.close()
 
     return rows
 
 def searchradio(radio, genre) :
     db = cherrypy.session['database']
-
-    o = 'order by radio'
+    #o = 'order by radio'
     o = ''
+    sql = "select id, radio, genre, url from Radio where exist > 0 and radio like '%%%s%%' and genre like '%%%s%%' and id > 0 %s" % (radio, genre, o)
     try:
-        sql = "select id, radio, genre, url from Radio where radio like '%%%s%%' and genre like '%%%s%%' and id != 0 %s" % (radio, genre, o)
         con = lite.connect( db )
         cur = con.cursor()
         cur.execute(sql)
@@ -544,16 +678,15 @@ def searchradio(radio, genre) :
 
 def updatelastradio(url) :
     db = cherrypy.session['database']
+    sql = "UPDATE Radio SET url='%s' WHERE id=0" % (url)
     try:
         con = lite.connect( db )
         cur = con.cursor()
-        sql = "UPDATE Radio SET url='%s' WHERE id=0" % (url)
         cur.execute(sql)
         con.commit()
         con.close()
     except:
         return
-
 
 def userdatabase(user) :
     db = database
@@ -561,60 +694,56 @@ def userdatabase(user) :
         return None
     return db
 
-
 def getshort(code) :
-    newcode = code
-    if len(newcode) > 30 :
-          newcode = newcode[0:30]
-
+    maxl = 5
+    newcode = code.replace('http://', '')
+    if len(newcode) > maxl :
+          newcode = newcode[0:maxl]
     return str(newcode)
 
 def setplayer(p):
     global player
     player = p
 
-def playradio(url):
+def playradio(urlid):
     global player
+
+    (radio, genre, url) = getradio(urlid)
 
     status = 0
     killall()
-
+    if player == 'mpg123':
+        command = "/usr/bin/mpg123 -q %s" % url
+        pidplayer = subprocess.Popen(command, shell=True).pid
     if player == 'mplayer':
         command = "/usr/bin/mplayer -really-quiet %s" % url
         pidplayer = subprocess.Popen(command, shell=True).pid
-        status = True
     if player == 'omxplayer':
         # Process is in background
         p = 'omxplayer'
-        status = subprocess.Popen([p, url])
+        subprocess.Popen([p, url])
 
-    updatelastradio(url)
-    return status
+    updatelastradio(urlid)
+    return (radio, genre, urlid)
 
 def killall():
     global player
     status = 0
-    if player == 'mplayer':
-        status = subprocess.call(["killall", "mplayer"])
-
     if player == 'omxplayer':
         control = "/usr/local/bin/omxcontrol"
         status = subprocess.call([control,  "stop"])
-        status = subprocess.call(["killall", "omxplayer.bin"])
+    status = subprocess.call(["pkill", player])
 
     return status
 
 def volume(vol) :
     global player
-
-    if player == 'mplayer':
-        return volume_mplayer(vol)
-
     if player == 'omxplayer':
         return volume_omxplayer(vol)
+    else:
+        return volume_alsa(vol)
 
-def volume_mplayer(vol):
-
+def volume_alsa(vol):
     # With ALSA on CHIP
     if vol == 'up':
         db = subprocess.check_output(["amixer set 'Power Amplifier' 5%+"], shell=True)
@@ -622,7 +751,6 @@ def volume_mplayer(vol):
     if vol == 'down':
         db = subprocess.check_output(["amixer set 'Power Amplifier' 5%-"], shell=True)
         #db = os.system("amixer set 'Power Amplifier' 5%-")
-
     i = db.rfind(':')
     return db[i+1:]
 
@@ -641,15 +769,11 @@ def volume_omxplayer(vol) :
     return volstring
 
 # ------------------------ SYSTEM --------------------------------
-
 def writemypid(pidfile):
     pid = str(os.getpid())
-    try:
-        f = file(pidfile, 'w')
+    with open(pidfile, 'w') as f:
         f.write(pid)
-        f.close
-    except:
-        pass
+    f.close
 
 # Cherrypy Management
 def error_page_404(status, message, traceback, version):
@@ -657,6 +781,21 @@ def error_page_404(status, message, traceback, version):
     html += "%s<br>" % (status)
     html += "%s" % (traceback)
     html += getfooter()
+    return html
+
+def error_page_401(status, message, traceback, version):
+    html = '''<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>My Radio Web Server</title>
+  <meta name="generator" content="Vim">
+  <meta charset="UTF-8">
+</head>
+<body>
+   '''
+    html += "<h1>%s</h1>" % (status)
+    html += "%s<br>" % (message)
+
     return html
 
 # Secure headers!
@@ -668,30 +807,30 @@ def secureheaders():
 
 if __name__ == '__main__':
 
-    import optparse
+    import argparse
 
-    parser = optparse.OptionParser()
-    parser.add_option('--port', action="store", dest="port", type="int", default=8804)
-    parser.add_option('--stage', action="store", dest="stage", type="string", default="production")
-    parser.add_option('--database', action="store", dest="database", type="string", default="database.db")
-    parser.add_option('--root', action="store", dest="root", type="string", default=".")
-    parser.add_option('--pid', action="store", dest="pid", type="string", default="webradio.pid")
-    parser.add_option('--player', action="store", dest="player", type="string", default="mplayer")
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--player', action="store", dest="player", default="omxplayer")
+    parser.add_argument('--stage', action="store", dest="stage", default="production")
+    parser.add_argument('--database', action="store", dest="database",  default="database.db")
+    parser.add_argument('--root', action="store", dest="root", default=".")
+    parser.add_argument('--pid', action="store", dest="pid", default="/tmp/8804.pid")
+    parser.add_argument('--port', action="store", dest="port", type=int, default=8804)
 
     # get args
-    options, args = parser.parse_args()
+    args = parser.parse_args()
 
     # Where to start, what to get
-    root = os.path.abspath(options.root)
-    database = os.path.join(root, options.database)
+    root = os.path.abspath(args.root)
+    database = os.path.join(root, args.database)
     os.chdir(root)
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    setplayer(options.player)
+    setplayer(args.player)
 
-    writemypid(options.pid)
+    writemypid(args.pid)
 
     settings = {'global': {'server.socket_host': "0.0.0.0",
-                           'server.socket_port' : options.port,
+                           'server.socket_port' : args.port,
                            'log.screen': True,
                           },
                }
@@ -710,17 +849,17 @@ if __name__ == '__main__':
                     },
            }
 
-    #cherrypy.config.update(file = 'configuration.conf')
     cherrypy.config.update(settings)
     cherrypy.config.update({'error_page.404': error_page_404})
+    cherrypy.config.update({'error_page.401': error_page_401})
     cherrypy.tools.secureheaders = cherrypy.Tool('before_finalize', secureheaders, priority=60)
 
-    # To make it ZERO CPU usage 
-    cherrypy.engine.timeout_monitor.unsubscribe()
-    cherrypy.engine.autoreload.unsubscribe()
+    # To make it ZERO CPU usage
+    #cherrypy.engine.timeout_monitor.unsubscribe()
+    #cherrypy.engine.autoreload.unsubscribe()
 
     # Cherry insert pages
-    serverroot = RadioServer()
+    serverroot = Root()
 
     # Start the CherryPy server.
     cherrypy.quickstart(serverroot, config=conf)
