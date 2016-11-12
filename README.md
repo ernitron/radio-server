@@ -9,7 +9,7 @@ Is is just a simple web interfcae to search, play, modify Internet Radios. Addin
 
 ## Installation on Raspberry // CHIP whatever
 
-Just copy the branch in a directory like /usr/local/bin/webradio 
+Just copy the branch in a directory like /usr/local/bin/radioserver 
 
 Starting from git repository I would suggest this (suppose your target device is 192.168.2.123):
 
@@ -17,7 +17,7 @@ Starting from git repository I would suggest this (suppose your target device is
 	cd /tmp
 	git clone https://github.com/ernitron/radio-server.git
 	cd radio-server
-	sudo cp -a webradio /usr/local/bin
+	sudo cp -a radio-server /usr/local/bin
 
 Install cherrypy3 and sqlite3 
 
@@ -29,7 +29,7 @@ Install player
     OR
 	$ sudo apt-get install mpg123 
 	
-Configure parameters in webradio.sh # it is already preconfigured if installation is in /usr/local/bin/webradio
+Configure parameters in radioserver.sh # it is already preconfigured if installation is in /usr/local/bin/radioserver
 Anyway it is possible to change default parameters of server like
 
 	--port 80 (default is 8804)
@@ -38,7 +38,7 @@ Anyway it is possible to change default parameters of server like
 
 Optional update-rc.d to let it start on boot (debian/ubuntu/raspiban/chip linux)
 
-	$ cd /usr/loca/bin/webradio
+	$ cd /usr/loca/bin/radioserver
 	$ sudo cp radioserver.sh /etc/init.d
 	$ sudo update-rc.d radioserver.sh defaults
   
