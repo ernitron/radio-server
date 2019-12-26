@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """
   My radio server application
   For my eyes only
@@ -267,7 +267,7 @@ def validate_password(self, login, password):
     return False
 
 def encrypt(pw):
-    from md5 import md5
+    from hashlib import md5
     return md5(pw).hexdigest()
 
 # ------------------------ CLASS --------------------------------
@@ -314,7 +314,7 @@ class Root:
         count = 0
 
         # Randomlist
-	if randomlist == 'true' : shuffle(list)
+        if randomlist == 'true' : shuffle(list)
 
         listhtml = '''<table class="table table-condensed">'''
         for id,radio,gen,url in list:
@@ -406,7 +406,6 @@ class Root:
         html += '''<a href="#" onClick="fdelradio('%s')"><span class="glyphicon glyphicon-trash"></span></a>&nbsp;''' % id
         html += '''<a href="#" onClick="faddfav('%s')"><span class="glyphicon glyphicon-star"></span></a>''' % id
         html += '''</h3>'''
-        print html
         return html
 
     @cherrypy.expose
@@ -560,7 +559,6 @@ def delete(id) :
         cur.execute(sql)
         ret = True
     except:
-        print "Error deleting sql %s" % sql
         ret = False
 
     updateversiondb(cur)
@@ -577,7 +575,6 @@ def nonexist(id) :
         cur.execute(sql)
         ret = True
     except:
-        print "Error in sql %s" % sql
         ret = False
 
     updateversiondb(cur)
@@ -594,7 +591,6 @@ def insert(radio, genre, url) :
         cur.execute(sql)
         ret = True
     except:
-        print "Error inserting sql %s" % sql
         ret = False
 
     updateversiondb(cur)
@@ -612,7 +608,6 @@ def modify(id, radio, url, genre) :
         cur.execute(sql)
         ret = True
     except:
-        print "Error modify sql %s" % sql
         ret = False
 
     updateversiondb(cur)
@@ -630,7 +625,6 @@ def addgen(id, genre) :
         cur.execute(sql)
         ret = True
     except:
-        print "Error modify sql %s" % sql
         ret = False
 
     updateversiondb(cur)
@@ -641,9 +635,9 @@ def addgen(id, genre) :
 def getradio(id) :
     db = cherrypy.session['database']
     if id.isdigit() :
-    	sql = "select radio, genre, url from Radio where id=%s" % id
+        sql = "select radio, genre, url from Radio where id=%s" % id
     else:
-    	sql = "select radio, genre, url from Radio where url=%s" % id
+        sql = "select radio, genre, url from Radio where url=%s" % id
     try:
         con = lite.connect( db )
         cur = con.cursor()
